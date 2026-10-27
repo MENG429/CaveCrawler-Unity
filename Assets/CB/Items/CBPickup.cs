@@ -41,12 +41,42 @@ namespace CB
             m_body.MaxFallSpeed = config.maxFallSpeed;
 
             m_sr = CBAssets.MakeSprite(gameObject, colour, new Vector2(size, size), 12);
+            ApplyArt();
 
             // Small pop so drops read clearly.
             m_body.Velocity = new Vector2(RandomPop(), 5.5f);
 
             gameObject.name = "CB_Pickup_" + kind;
             CBGameClock.Instance.Register(this, CBStepOrder.Items);
+        }
+
+        CBAnimPlayer m_anim;
+
+        /// <summary>
+        /// Coin spin / potion / weapon art. Weapons map by id through CBArt.WeaponClip.
+        /// Any missing sheet leaves the placeholder colour block in place.
+        /// </summary>
+        void ApplyArt()
+        {
+            string sheet = null;
+            string clipName = null;
+
+            if (m_kind == Kind.Coin) { sheet = "pickups"; clipName = "coin"; }
+            else if (m_kind == Kind.Potion) { sheet = "pickups"; clipName = "potion"; }
+            else if (m_weapon != null)
+            {
+                CBArt.Clip weaponClip = CBArt.WeaponClip(m_weapon);
+                if (weaponClip == null) return;
+                m_anim = new CBAnimPlayer(m_sr);
+                m_anim.Play(weaponClip, true);
+                return;
+            }
+
+            CBArt.Clip clip;
+            if (sheet == null || !CBArt.TryGetClip(sheet, clipName, out clip)) return;
+
+            m_anim = new CBAnimPlayer(m_sr);
+            m_anim.Play(clip, true);
         }
 
         float RandomPop()
@@ -86,6 +116,8 @@ namespace CB
             }
 
             m_body.Step(dt);
+
+            if (m_anim != null) m_anim.Tick(dt);
 
             // Bob for readability.
             if (m_sr != null && m_body.Grounded)

@@ -23,10 +23,26 @@ namespace CB
 
             m_base = CBAssets.MakeSprite(gameObject, CBAssets.Pedestal, new Vector2(1.0f, 0.7f), 7);
 
+            var baseSprite = CBArt.FirstSprite("pickups", "pedestal");
+            if (baseSprite != null)
+            {
+                m_base.sprite = baseSprite;
+                m_base.drawMode = SpriteDrawMode.Simple;
+                m_base.color = Color.white;
+            }
+
             var iconObject = new GameObject("Icon");
             iconObject.transform.SetParent(transform, false);
             iconObject.transform.localPosition = new Vector3(0f, 0.95f, 0f);
             m_icon = CBAssets.MakeSprite(iconObject, weapon != null ? weapon.Tint : Color.white, new Vector2(0.7f, 0.35f), 11);
+
+            var weaponSprite = weapon != null ? CBArt.WeaponClip(weapon) : null;
+            if (weaponSprite != null && weaponSprite.Frames.Length > 0)
+            {
+                m_icon.sprite = weaponSprite.Frames[0];
+                m_icon.drawMode = SpriteDrawMode.Simple;
+                m_icon.color = Color.white;
+            }
 
             gameObject.name = "CB_Pedestal";
             CBGame.RegisterInteractable(this);
@@ -69,7 +85,19 @@ namespace CB
 
             // Swap: the replaced weapon stays on the pedestal.
             m_weapon = previous;
-            if (m_icon != null && previous != null) m_icon.color = previous.Tint;
+            if (m_icon != null && previous != null)
+            {
+                var nextClip = CBArt.WeaponClip(previous);
+                if (nextClip != null && nextClip.Frames.Length > 0)
+                {
+                    m_icon.sprite = nextClip.Frames[0];
+                    m_icon.color = Color.white;
+                }
+                else
+                {
+                    m_icon.color = previous.Tint;
+                }
+            }
 
             CBFx.SpawnRing(transform.position, 1.4f, CBAssets.Portal, 0.3f);
         }

@@ -63,10 +63,44 @@ namespace CB
             m_sr.size = new Vector2(0.55f, 0.16f);
             m_sr.sortingOrder = 25;
 
+            ApplyArt();
+
             transform.position = new Vector3(position.x, position.y, 0f);
             Orient();
 
             CBGameClock.Instance.Register(this, CBStepOrder.Projectile);
+        }
+
+        /// <summary>
+        /// Swaps the placeholder block for a projectile sprite. Sprites face right, which
+        /// matches Orient()'s Atan2 convention. Missing sheet -> placeholder stays.
+        /// </summary>
+        void ApplyArt()
+        {
+            string clipName;
+            if (m_bow != null)
+            {
+                switch (m_bow.Id)
+                {
+                    case "bow_fire": clipName = "p_fire"; break;
+                    case "bow_ice": clipName = "p_ice"; break;
+                    case "bow_poison": clipName = "p_poison"; break;
+                    case "bow_hand_cannon": clipName = "p_ball"; break;
+                    default: clipName = "p_arrow"; break;
+                }
+            }
+            else
+            {
+                // Enemy arrows target the player (the archer has no bow def).
+                clipName = m_targetTeam == CBActor.TeamKind.Player ? "p_enemy" : "p_arrow";
+            }
+
+            var sprite = CBArt.FirstSprite("projectiles", clipName);
+            if (sprite == null) return;
+
+            m_sr.sprite = sprite;
+            m_sr.drawMode = SpriteDrawMode.Simple;
+            m_sr.color = Color.white;
         }
 
         public void FixedStep(float dt)
@@ -130,7 +164,7 @@ namespace CB
                 if (!target.TakeDamage(info)) continue;
 
                 ApplyProcs(target);
-                CBFx.SpawnBurst(m_position, 5, m_colour, 7f, 0.22f, 0.14f);
+                CBFx.SpawnImpact(m_position, 1.2f);
 
                 if (m_bow != null && m_bow.ExplodesOnHit)
                 {

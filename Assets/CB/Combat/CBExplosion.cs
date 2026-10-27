@@ -48,8 +48,7 @@ namespace CB
             }
             hits.Clear();
 
-            CBFx.SpawnRing(centre, radius, CBAssets.Fire, 0.28f);
-            CBFx.SpawnBurst(centre, 10, CBAssets.Fire, 9f, 0.35f);
+            CBFx.SpawnExplosion(centre, radius);
             if (CBCamera2D.Instance != null) CBCamera2D.Instance.Shake(0.35f);
         }
     }

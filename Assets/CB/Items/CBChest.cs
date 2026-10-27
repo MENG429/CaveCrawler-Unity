@@ -8,6 +8,7 @@ namespace CB
         CBConfig m_config;
         SpriteRenderer m_sr;
         bool m_opened;
+        bool m_art;
 
         public float InteractRadius { get { return 1.8f; } }
         public string Prompt { get { return m_opened ? "" : "Open chest  (E)"; } }
@@ -18,12 +19,25 @@ namespace CB
             m_config = config;
             transform.position = new Vector3(position.x, position.y, 0f);
 
-            // Two stacked boxes read as a chest without any art asset.
             m_sr = CBAssets.MakeSprite(gameObject, CBAssets.Chest, new Vector2(1.1f, 0.75f), 8);
-            var lid = new GameObject("Lid");
-            lid.transform.SetParent(transform, false);
-            lid.transform.localPosition = new Vector3(0f, 0.5f, 0f);
-            CBAssets.MakeSprite(lid, CBAssets.RockAccent, new Vector2(1.15f, 0.28f), 9);
+
+            // Art chest replaces the placeholder body + lid stack entirely.
+            var closed = CBArt.FirstSprite("pickups", "chest_closed");
+            if (closed != null)
+            {
+                m_art = true;
+                m_sr.sprite = closed;
+                m_sr.drawMode = SpriteDrawMode.Simple;
+                m_sr.color = Color.white;
+            }
+            else
+            {
+                // Two stacked boxes read as a chest without any art asset.
+                var lid = new GameObject("Lid");
+                lid.transform.SetParent(transform, false);
+                lid.transform.localPosition = new Vector3(0f, 0.5f, 0f);
+                CBAssets.MakeSprite(lid, CBAssets.RockAccent, new Vector2(1.15f, 0.28f), 9);
+            }
 
             gameObject.name = "CB_Chest";
             CBGame.RegisterInteractable(this);
@@ -72,7 +86,16 @@ namespace CB
             CBFx.SpawnRing(at, 1.6f, CBAssets.Coin, 0.35f);
             CBFx.SpawnBurst(at, 12, CBAssets.Coin, 8f, 0.45f, 0.16f);
 
-            if (m_sr != null) m_sr.color = CBAssets.RockAccent;
+            var opened = CBArt.FirstSprite("pickups", "chest_open");
+            if (opened != null)
+            {
+                m_sr.sprite = opened;
+                m_sr.color = Color.white;
+            }
+            else if (!m_art && m_sr != null)
+            {
+                m_sr.color = CBAssets.RockAccent;
+            }
         }
     }
 }

@@ -46,6 +46,11 @@ namespace CB
             CBWeaponLibrary.Build();
             CBFx.EnsureHost();
 
+            // Pixel-art sheets load lazily on first use; warmup here only touches the
+            // frame table so missing textures degrade to placeholders silently.
+            try { CBArt.Warmup(); }
+            catch (System.Exception e) { Debug.LogWarning("CBArt warmup failed, placeholder art stays active: " + e.Message); }
+
             m_levelRoot = MakeRoot("CB_LevelRoot");
             m_entityRoot = MakeRoot("CB_EntityRoot");
             m_pickupRoot = MakeRoot("CB_PickupRoot");
