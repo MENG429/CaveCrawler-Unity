@@ -8,7 +8,7 @@ namespace CB
     /// </summary>
     public class CBPickup : MonoBehaviour, ICBFixedStep
     {
-        public enum Kind { Coin, Potion, Weapon }
+        public enum Kind { Coin, Potion, Weapon, Equipment }
 
         CBConfig m_config;
         CBTileWorld m_world;
@@ -18,21 +18,24 @@ namespace CB
         Kind m_kind;
         int m_amount;
         CBWeaponDef m_weapon;
+        CBEquipDef m_equip;
         float m_age;
         bool m_consumed;
 
-        public void Init(CBConfig config, CBTileWorld world, Vector2 position, Kind kind, int amount, CBWeaponDef weapon)
+        public void Init(CBConfig config, CBTileWorld world, Vector2 position, Kind kind, int amount, CBWeaponDef weapon, CBEquipDef equip = null)
         {
             m_config = config;
             m_world = world;
             m_kind = kind;
             m_amount = amount;
             m_weapon = weapon;
+            m_equip = equip;
             m_age = 0f;
 
-            float size = kind == Kind.Weapon ? 0.55f : 0.38f;
+            float size = kind == Kind.Weapon ? 0.55f : (kind == Kind.Equipment ? 0.45f : 0.38f);
             Color colour = kind == Kind.Coin ? CBAssets.Coin
                 : kind == Kind.Potion ? CBAssets.Potion
+                : kind == Kind.Equipment ? (equip != null ? equip.Tint : Color.white)
                 : (weapon != null ? weapon.Tint : Color.white);
 
             m_body = gameObject.AddComponent<CBBody>();
@@ -130,7 +133,8 @@ namespace CB
         {
             if (m_kind == Kind.Coin)
             {
-                player.Coins += m_amount;
+                float coinMul = (player.Loadout != null) ? player.Loadout.Mods.coinMul : 1f;
+                player.Coins += Mathf.Max(1, Mathf.RoundToInt(m_amount * coinMul));
             }
             else if (m_kind == Kind.Potion)
             {
@@ -141,6 +145,10 @@ namespace CB
             {
                 if (player.Combat != null) player.Combat.Equip(m_weapon);
             }
+            else if (m_kind == Kind.Equipment && m_equip != null)
+            {
+                player.AddEquipment(m_equip);
+            }
 
             m_consumed = true;
             CBFx.SpawnBurst(m_body.Position, 5, m_sr != null ? m_sr.color : Color.white, 6f, 0.2f, 0.12f);
@@ -148,12 +156,12 @@ namespace CB
             Destroy(gameObject);
         }
 
-        public static CBPickup Spawn(CBConfig config, CBTileWorld world, Transform parent, Vector2 position, Kind kind, int amount, CBWeaponDef weapon)
+        public static CBPickup Spawn(CBConfig config, CBTileWorld world, Transform parent, Vector2 position, Kind kind, int amount, CBWeaponDef weapon, CBEquipDef equip = null)
         {
             var go = new GameObject("CB_Pickup");
             if (parent != null) go.transform.SetParent(parent, false);
             var pickup = go.AddComponent<CBPickup>();
-            pickup.Init(config, world, position, kind, amount, weapon);
+            pickup.Init(config, world, position, kind, amount, weapon, equip);
             return pickup;
         }
     }

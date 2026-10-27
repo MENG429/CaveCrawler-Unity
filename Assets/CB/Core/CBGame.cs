@@ -44,6 +44,8 @@ namespace CB
             Rng = new CBUtil.Rng(config.randomSeed);
 
             CBWeaponLibrary.Build();
+            CBEquipLibrary.Build();
+            CBBlessingLibrary.Build();
             CBFx.EnsureHost();
 
             // Pixel-art sheets load lazily on first use; warmup here only touches the
@@ -216,7 +218,18 @@ namespace CB
 
                 for (int i = 0; i < Config.chestsPerRoom; i++) SpawnChest(room);
                 for (int i = 0; i < Config.pedestalsPerRoom; i++) SpawnPedestal(room);
+                if (Rng.Chance(Config.blessingShrineChance)) SpawnBlessingShrine(room);
             }
+        }
+
+        void SpawnBlessingShrine(CBRoom room)
+        {
+            Vector2Int tile;
+            if (!Level.TryPickSpawnTile(room, Rng, 4, out tile)) return;
+            var go = new GameObject("CB_BlessingShrine");
+            go.transform.SetParent(m_entityRoot, false);
+            var shrine = go.AddComponent<CBBlessingShrine>();
+            shrine.Init(Config, new Vector2(tile.x + 0.5f, tile.y + 0.6f));
         }
 
         void SpawnEnemy(CBRoom room)
@@ -295,6 +308,12 @@ namespace CB
                 bool wantBow = Rng.Chance(0.5f);
                 CBWeaponDef def = wantBow ? (CBWeaponDef)CBWeaponLibrary.RandomBow(Rng) : CBWeaponLibrary.RandomSword(Rng);
                 if (def != null) CBPickup.Spawn(Config, World, m_pickupRoot, position, CBPickup.Kind.Weapon, 0, def);
+            }
+
+            if (Rng.Chance(Config.equipmentDropChance))
+            {
+                var equip = CBEquipLibrary.Roll(Rng);
+                if (equip != null) CBPickup.Spawn(Config, World, m_pickupRoot, position, CBPickup.Kind.Equipment, 0, null, equip);
             }
         }
 
