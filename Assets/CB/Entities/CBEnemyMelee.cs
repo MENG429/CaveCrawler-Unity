@@ -10,6 +10,7 @@ namespace CB
     {
         enum State { Chase, Windup, Active, Recover }
         State m_state = State.Chase;
+        State m_lastArtState = (State)(-1);
 
         public int ContactDamage = 9;
         public float AttackRange = 1.25f;
@@ -25,16 +26,39 @@ namespace CB
 
             InitEnemy(config, world, nav, new Vector2(w, h), position, hp,
                 heavy ? CBAssets.Bruiser : CBAssets.Chaser);
+            BindArt("enemy_goblin", "idle");
 
             ContactDamage = heavy ? Mathf.RoundToInt(config.chaserDamage * 1.6f) : config.chaserDamage;
             AttackKnockback = heavy ? config.chaserKnockback * 1.5f : config.chaserKnockback;
             gameObject.name = heavy ? "CB_Bruiser" : "CB_Chaser";
         }
 
+        void UpdateArt()
+        {
+            if (m_anim == null) return;
+
+            string clip;
+            bool restart = m_state != m_lastArtState;
+            m_lastArtState = m_state;
+
+            switch (m_state)
+            {
+                case State.Windup: clip = "windup"; break;
+                case State.Active:
+                case State.Recover: clip = "strike"; break;
+                default: clip = Mathf.Abs(Body.Velocity.x) > 0.4f ? "run" : "idle"; restart = false; break;
+            }
+
+            PlayArt(clip, restart);
+        }
+
         public override void FixedStep(float dt)
         {
             base.FixedStep(dt);
             if (Dead) return;
+
+            UpdateArt();
+            TickArt(dt);
 
             RefreshTarget();
 

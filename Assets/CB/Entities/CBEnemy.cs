@@ -155,7 +155,7 @@ namespace CB
 
         protected override void OnDamaged(CBDamageInfo info)
         {
-            CBFx.SpawnBurst(Body.Position, 4, Color.white, 6f, 0.16f, 0.12f);
+            CBFx.SpawnImpact(Body.Position, 1.3f);
         }
     }
 }

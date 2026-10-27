@@ -32,6 +32,10 @@ namespace CB
         public SwingPhase Phase { get { return m_phase; } }
         public int ComboIndex { get { return m_comboIndex; } }
         public bool IsSwinging { get { return m_phase != SwingPhase.None; } }
+        /// <summary>Monotonic counter - the player animator restarts the swing clip when it changes.</summary>
+        public int SwingSeq { get; private set; }
+        /// <summary>Time remaining for the bow-shot animation pose.</summary>
+        public float BowAnimTime { get; private set; }
         public float BowCooldown01 { get { return Bow != null ? Mathf.Clamp01(m_bowCooldown / Bow.FireInterval) : 1f; } }
 
         public void Init(CBConfig config, CBPlayerController player, CBTileWorld world)
@@ -78,6 +82,7 @@ namespace CB
             if (m_swingCooldown > 0f) m_swingCooldown -= dt;
             if (m_comboTimer > 0f) m_comboTimer -= dt;
             if (m_bowCooldown > 0f) m_bowCooldown -= dt;
+            if (BowAnimTime > 0f) BowAnimTime -= dt;
 
             // ---- melee input ----
             if (m_phase == SwingPhase.None && m_swingCooldown <= 0f && !m_player.IsDiving)
@@ -102,6 +107,7 @@ namespace CB
             m_hitThisSwing.Clear();
             m_phase = SwingPhase.Windup;
             m_phaseTimer = WindupTime;
+            SwingSeq++;
         }
 
         int EffectiveIndex
@@ -201,7 +207,7 @@ namespace CB
                 if (CBCamera2D.Instance != null)
                     CBCamera2D.Instance.Shake(heavy ? m_config.screenShakeHit * 2f : m_config.screenShakeHit);
 
-                CBFx.SpawnBurst(target.Body.Position, heavy ? 8 : 4, CBAssets.Slash, 8f, 0.2f, 0.16f);
+                CBFx.SpawnImpact(target.Body.Position, 1.6f);
 
                 if (Sword.ExplodesOnHit)
                 {
@@ -221,6 +227,7 @@ namespace CB
             if (Bow == null || m_player == null || m_player.Body == null) return;
 
             m_bowCooldown = Bow.FireInterval;
+            BowAnimTime = 0.4f;   // hold the draw/release pose briefly for the animator
 
             bool right = m_player.FacingRight;
             float baseAngle = 0f;

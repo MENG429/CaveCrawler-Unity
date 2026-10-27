@@ -48,6 +48,11 @@ namespace CB
         Color m_baseColour = Color.white;
         float m_flashTimer;
 
+        // Pixel-art animation (null when the art sheet is unavailable -> placeholder path).
+        protected CBAnimPlayer m_anim;
+        protected string m_artSheet;
+        protected bool m_artFacesLeft;
+
         public bool IsInvulnerable { get { return m_invulnTimer > 0f; } }
         public float SlowFactor { get { return m_slowTimer > 0f ? m_config.slowFactor : 1f; } }
         public bool IsBurning { get { return m_burnTimer > 0f; } }
@@ -84,6 +89,45 @@ namespace CB
         {
             m_baseColour = c;
             if (m_renderer != null) m_renderer.color = c;
+        }
+
+        // ---------------- Pixel-art binding ----------------
+        /// <summary>
+        /// Attaches the art animation player when the sheet exists. Anything art-driven
+        /// swaps the renderer from the placeholder (Sliced colour block) to the sheet's
+        /// sprites; when the sheet is missing this is a no-op and nothing downstream can
+        /// null-ref because every PlayArt call re-checks.
+        /// </summary>
+        protected void BindArt(string sheetName, string clipName)
+        {
+            CBArt.Clip clip;
+            if (!CBArt.TryGetClip(sheetName, clipName, out clip)) return;
+            if (m_renderer == null) return;
+
+            m_artSheet = sheetName;
+            m_artFacesLeft = CBArt.FacesLeft(sheetName);
+            m_anim = new CBAnimPlayer(m_renderer);
+            m_anim.Play(clip, true);
+
+            // Art must not be tinted by the placeholder colour; status effects still tint
+            // from white via FixedStep.
+            m_baseColour = Color.white;
+            m_renderer.color = Color.white;
+        }
+
+        /// <summary>Switch animation clip. Safe (no-op) when art is not bound or clip missing.</summary>
+        protected void PlayArt(string clipName, bool restart = false)
+        {
+            if (m_anim == null || string.IsNullOrEmpty(clipName) || m_artSheet == null) return;
+            CBArt.Clip clip;
+            if (!CBArt.TryGetClip(m_artSheet, clipName, out clip)) return;
+            m_anim.Play(clip, restart);
+        }
+
+        /// <summary>Advance the bound animation. Call once per FixedStep.</summary>
+        protected void TickArt(float dt)
+        {
+            if (m_anim != null) m_anim.Tick(dt);
         }
 
         protected virtual void OnDestroyed()
@@ -203,7 +247,7 @@ namespace CB
         public void SetFacing(bool right)
         {
             FacingRight = right;
-            if (m_renderer != null) m_renderer.flipX = !right;
+            if (m_renderer != null) m_renderer.flipX = m_artFacesLeft ? right : !right;
         }
 
         public void FaceTowards(Vector2 target)

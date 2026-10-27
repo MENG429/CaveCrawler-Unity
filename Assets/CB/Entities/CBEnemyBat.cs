@@ -10,6 +10,7 @@ namespace CB
     {
         enum State { Hover, Telegraph, Dive, Recover }
         State m_state = State.Hover;
+        State m_lastArtState = (State)(-1);
 
         float m_bobPhase;
         Vector2 m_diveDirection;
@@ -17,15 +18,38 @@ namespace CB
         public void InitBat(CBConfig config, CBTileWorld world, CBPathfinder nav, Vector2 position)
         {
             InitEnemy(config, world, nav, new Vector2(config.batWidth, config.batHeight), position, config.batHP, CBAssets.Bat);
+            BindArt("enemy_bat", "hover");
             Body.UseGravity = false;
             gameObject.name = "CB_Bat";
             m_bobPhase = position.x * 0.7f;
+        }
+
+        void UpdateArt()
+        {
+            if (m_anim == null) return;
+
+            string clip;
+            bool restart = m_state != m_lastArtState;
+            m_lastArtState = m_state;
+
+            switch (m_state)
+            {
+                case State.Telegraph: clip = "telegraph"; break;
+                case State.Dive: clip = "dive"; break;
+                case State.Recover: clip = "recover"; break;
+                default: clip = "hover"; restart = false; break;
+            }
+
+            PlayArt(clip, restart);
         }
 
         public override void FixedStep(float dt)
         {
             base.FixedStep(dt);
             if (Dead) return;
+
+            UpdateArt();
+            TickArt(dt);
 
             RefreshTarget();
 

@@ -30,6 +30,10 @@ namespace CB
         bool m_wasGroundedLastStep;
         float m_landTimer;
 
+        // Art state
+        float m_airOverride;     // double-jump flip frames override the fall cycle
+        int m_lastSwingSeq = -1;
+
         public bool CanAct { get { return !Dead && !IsDiving; } }
 
         public void InitPlayer(CBConfig config, CBTileWorld world, Vector2 position)
@@ -38,12 +42,62 @@ namespace CB
             Init(config, world, new Vector2(config.playerWidth, config.playerHeight), position, config.maxHP);
             InvulnerableTime = config.invulnerableTime;
             SetColour(CBAssets.Player);
+            BindArt("player_idle_run", "idle");
             gameObject.name = "CB_Player";
+        }
+
+        /// <summary>
+        /// State-driven clip selection. Every branch degrades to the previous clip when art
+        /// is missing, because PlayArt is a no-op without a bound player.
+        /// </summary>
+        void UpdateArt()
+        {
+            if (m_anim == null) return;
+
+            string clip;
+            bool restart = false;
+
+            if (Combat != null && Combat.IsSwinging)
+            {
+                int seq = Combat.SwingSeq;
+                restart = seq != m_lastSwingSeq;
+                m_lastSwingSeq = seq;
+                clip = "swing" + Mathf.Clamp(Combat.ComboIndex, 0, 2);
+            }
+            else if (Combat != null && Combat.BowAnimTime > 0f)
+            {
+                clip = "bow";
+            }
+            else if (IsDiving)
+            {
+                clip = "dive";
+            }
+            else if (!m_body.Grounded)
+            {
+                if (m_airOverride > 0f)
+                {
+                    m_airOverride -= 1f / 60f;
+                    clip = "double";
+                }
+                else
+                {
+                    clip = m_body.Velocity.y > 1.5f ? "jump" : "fall";
+                }
+            }
+            else
+            {
+                clip = Mathf.Abs(m_body.Velocity.x) > 0.6f ? "run" : "idle";
+            }
+
+            PlayArt(clip, restart);
         }
 
         public override void FixedStep(float dt)
         {
             if (Dead) { m_body.Step(dt); return; }
+
+            UpdateArt();
+            TickArt(dt);
 
             if (m_diveCooldown > 0f) m_diveCooldown -= dt;
             if (m_landTimer > 0f) m_landTimer -= dt;
@@ -86,6 +140,7 @@ namespace CB
                     m_jumpsUsed++;
                     DoJump(m_config.doubleJumpSpeed);
                     m_jumpBuffer = 0f;
+                    m_airOverride = 0.35f;   // show the double-jump flip before the fall cycle
                     CBFx.SpawnRing(m_body.Feet, 0.7f, CBAssets.Player, 0.18f);
                 }
             }

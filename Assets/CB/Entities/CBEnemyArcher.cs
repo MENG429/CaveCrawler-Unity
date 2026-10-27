@@ -10,20 +10,43 @@ namespace CB
     {
         enum State { Reposition, Aim, Fire }
         State m_state = State.Reposition;
+        State m_lastArtState = (State)(-1);
 
         float m_fireCooldown;
 
         public void InitArcher(CBConfig config, CBTileWorld world, CBPathfinder nav, Vector2 position)
         {
             InitEnemy(config, world, nav, new Vector2(config.archerWidth, config.archerHeight), position, config.archerHP, CBAssets.Archer);
+            BindArt("enemy_archer", "idle");
             gameObject.name = "CB_Archer";
             m_fireCooldown = config.archerFireInterval * 0.5f;
+        }
+
+        void UpdateArt()
+        {
+            if (m_anim == null) return;
+
+            string clip;
+            bool restart = m_state != m_lastArtState;
+            m_lastArtState = m_state;
+
+            switch (m_state)
+            {
+                case State.Aim: clip = "draw"; break;
+                case State.Fire: clip = "release"; break;
+                default: clip = Mathf.Abs(Body.Velocity.x) > 0.4f ? "walk" : "idle"; restart = false; break;
+            }
+
+            PlayArt(clip, restart);
         }
 
         public override void FixedStep(float dt)
         {
             base.FixedStep(dt);
             if (Dead) return;
+
+            UpdateArt();
+            TickArt(dt);
 
             RefreshTarget();
             if (!IsTargetValid())
