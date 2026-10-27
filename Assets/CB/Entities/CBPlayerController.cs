@@ -15,6 +15,8 @@ namespace CB
     {
         public CBPlayerCombat Combat { get; set; }
 
+        CBTileWorld m_world;
+
         float m_coyote;
         float m_jumpBuffer;
         int m_jumpsUsed;
@@ -30,9 +32,18 @@ namespace CB
         bool m_wasGroundedLastStep;
         float m_landTimer;
 
+        // Wall-climb state
+        public bool OnWall { get; private set; }
+        int m_wallSide;          // -1 = left wall, +1 = right wall, 0 = none
+        float m_wallGrace;
+        float m_wallJumpLock;
+
         // Art state
         float m_airOverride;     // double-jump flip frames override the fall cycle
         int m_lastSwingSeq = -1;
+
+        // Run-scoped loadout (equipment + blessings), persisted across levels.
+        public CBLoadout Loadout { get; private set; }
 
         public bool CanAct { get { return !Dead && !IsDiving; } }
 
@@ -40,10 +51,31 @@ namespace CB
         {
             Team = TeamKind.Player;
             Init(config, world, new Vector2(config.playerWidth, config.playerHeight), position, config.maxHP);
+            m_world = world;
             InvulnerableTime = config.invulnerableTime;
+            Loadout = new CBLoadout();
+            Loadout.Init(config.ringSlots);
             SetColour(CBAssets.Player);
             BindArt("player_idle_run", "idle");
             gameObject.name = "CB_Player";
+        }
+
+        public override float KnockbackResist { get { return Loadout != null ? Loadout.Mods.knockbackResist : 0f; } }
+
+        public bool AddEquipment(CBEquipDef def)
+        {
+            if (Loadout == null || !Loadout.AddEquipment(def)) return false;
+            if (def != null && def.Modifier != null && def.Modifier.maxHP > 0) AddMaxHP(def.Modifier.maxHP);
+            if (Body != null) CBFx.SpawnRing(Body.Position, 1.2f, def != null ? def.Tint : CBAssets.Portal, 0.3f);
+            return true;
+        }
+
+        public bool AddBlessing(CBBlessingDef def)
+        {
+            if (Loadout == null || !Loadout.AddBlessing(def)) return false;
+            if (def != null && def.Modifier != null && def.Modifier.maxHP > 0) AddMaxHP(def.Modifier.maxHP);
+            if (Body != null) CBFx.SpawnRing(Body.Position, 1.2f, def != null ? def.Tint : CBAssets.Portal, 0.3f);
+            return true;
         }
 
         /// <summary>
@@ -120,6 +152,25 @@ namespace CB
                 m_coyote -= dt;
             }
 
+            int maxJumps = m_config.maxJumps + (Loadout != null ? Loadout.Mods.jumpBonus : 0);
+            float moveSpeed = m_config.moveSpeed * (Loadout != null ? Loadout.Mods.moveSpeedMul : 1f);
+
+            // ---- wall-climb state (only when airborne and not in a post-walljump lockout) ----
+            if (!m_body.Grounded && m_wallJumpLock <= 0f)
+            {
+                int side = 0;
+                if (SolidAtSide(-1)) side = -1;
+                else if (SolidAtSide(1)) side = 1;
+                if (side != 0) { m_wallSide = side; m_wallGrace = m_config.wallStickGrace; }
+                else { m_wallGrace -= dt; if (m_wallGrace <= 0f) m_wallSide = 0; }
+            }
+            else
+            {
+                if (m_wallJumpLock > 0f) m_wallJumpLock -= dt;
+                m_wallSide = 0;
+            }
+            OnWall = m_wallSide != 0;
+
             // Edge input: latched in Update, consumed here.
             if (CBInput.ConsumeJump()) m_jumpBuffer = m_config.jumpBufferTime;
 
@@ -135,7 +186,13 @@ namespace CB
                     m_coyote = 0f;
                     m_jumpBuffer = 0f;
                 }
-                else if (m_jumpsUsed < m_config.maxJumps)
+                else if (OnWall && m_wallSide != 0)
+                {
+                    DoWallJump();
+                    m_jumpsUsed = 1;
+                    m_jumpBuffer = 0f;
+                }
+                else if (m_jumpsUsed < maxJumps)
                 {
                     m_jumpsUsed++;
                     DoJump(m_config.doubleJumpSpeed);
@@ -161,7 +218,7 @@ namespace CB
 
             // ---- horizontal movement ----
             float input = CBInput.Horizontal;
-            float target = input * m_config.moveSpeed;
+            float target = input * moveSpeed;
             float accel;
             float friction;
 
@@ -187,6 +244,19 @@ namespace CB
                 m_body.Velocity.x = CBUtil.Approach(m_body.Velocity.x, 0f, friction * dt);
             }
 
+            // ---- wall cling / climb (overrides fall once we are sticking) ----
+            if (OnWall && !m_body.Grounded)
+            {
+                bool pushingInto = Mathf.Abs(input) < 0.01f || Mathf.Sign(input) == m_wallSide;
+                if (pushingInto)
+                {
+                    if (CBInput.UpHeld && !CBInput.DownHeld) m_body.Velocity.y = m_config.wallClimbSpeed;
+                    else m_body.Velocity.y = Mathf.Max(m_body.Velocity.y, -m_config.wallSlideSpeed);
+                    if (Mathf.Sign(input) == m_wallSide && Mathf.Abs(m_body.Velocity.x) > 1.5f)
+                        m_body.Velocity.x = Mathf.Sign(m_body.Velocity.x) * 1.5f;
+                }
+            }
+
             m_body.Step(dt);
 
             if (m_body.Grounded && !m_wasGroundedLastStep) m_landTimer = m_config.landRecovery;
@@ -199,6 +269,26 @@ namespace CB
             m_jumpCutApplied = false;
             m_body.Grounded = false;
             m_coyote = 0f;
+        }
+
+        void DoWallJump()
+        {
+            int away = -m_wallSide;   // push off the wall we are clinging to
+            m_body.Velocity.x = away * m_config.wallJumpX;
+            m_body.Velocity.y = m_config.wallJumpY;
+            m_body.Grounded = false;
+            m_jumpCutApplied = false;
+            m_wallSide = 0;
+            m_wallJumpLock = m_config.wallJumpLockTime;
+            SetFacing(away > 0f);
+            CBFx.SpawnRing(m_body.Feet, 0.6f, CBAssets.Player, 0.15f);
+        }
+
+        bool SolidAtSide(int dir)
+        {
+            if (m_body == null || m_world == null) return false;
+            float x = m_body.Position.x + dir * (m_body.HalfW + 0.06f);
+            return m_world.IsSolidAtWorld(new Vector2(x, m_body.Position.y));
         }
 
         // ---------------- Dive attack ----------------

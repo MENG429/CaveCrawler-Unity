@@ -22,6 +22,7 @@ namespace CB
         CBActor.TeamKind m_targetTeam;
         CBActor m_owner;
         Color m_colour;
+        CBWeaponDef m_reclaim;
 
         SpriteRenderer m_sr;
         bool m_dead;
@@ -164,6 +165,8 @@ namespace CB
                 if (!target.TakeDamage(info)) continue;
 
                 ApplyProcs(target);
+                if (target.Dead && m_owner is CBPlayerController)
+                    ((CBPlayerController)m_owner).Combat.NotifyKill(target);
                 CBFx.SpawnImpact(m_position, 1.2f);
 
                 if (m_bow != null && m_bow.ExplodesOnHit)
@@ -207,11 +210,20 @@ namespace CB
             if (m_bow.SlowChance > 0f && rng.Chance(m_bow.SlowChance)) target.ApplySlow();
         }
 
+        /// <summary>Mark the thrown weapon to drop back as a reclaimable pickup when this projectile ends.</summary>
+        public void SetReclaim(CBWeaponDef weapon) { m_reclaim = weapon; }
+
         void Despawn(bool impact)
         {
             if (m_dead) return;
             m_dead = true;
             if (impact) CBFx.SpawnBurst(m_position, 4, m_colour, 5f, 0.18f, 0.12f);
+
+            if (m_reclaim != null && CBGame.Instance != null && CBGame.Instance.PickupRoot != null)
+            {
+                CBPickup.Spawn(m_config, m_world, CBGame.Instance.PickupRoot, m_position, CBPickup.Kind.Weapon, 0, m_reclaim);
+            }
+
             if (CBGameClock.Instance != null) CBGameClock.Instance.Unregister(this);
             Destroy(gameObject);
         }
