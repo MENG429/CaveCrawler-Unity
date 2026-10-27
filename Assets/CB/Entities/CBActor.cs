@@ -54,6 +54,8 @@ namespace CB
         protected bool m_artFacesLeft;
 
         public bool IsInvulnerable { get { return m_invulnTimer > 0f; } }
+        /// <summary>Fraction of incoming knockback ignored (0 = full, 1 = immune). Player overrides.</summary>
+        public virtual float KnockbackResist { get { return 0f; } }
         public float SlowFactor { get { return m_slowTimer > 0f ? m_config.slowFactor : 1f; } }
         public bool IsBurning { get { return m_burnTimer > 0f; } }
         public bool IsPoisoned { get { return m_poisonTimer > 0f; } }
@@ -197,7 +199,8 @@ namespace CB
 
             if (m_body != null && info.Knockback.sqrMagnitude > 0.0001f)
             {
-                m_body.Velocity += info.Knockback;
+                float resist = 1f - Mathf.Clamp01(KnockbackResist);
+                m_body.Velocity += info.Knockback * resist;
             }
 
             OnDamaged(info);

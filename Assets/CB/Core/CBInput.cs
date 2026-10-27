@@ -26,6 +26,9 @@ namespace CB
         static bool s_interactLatch;
         static bool s_restartLatch;
         static bool s_regenLatch;
+        static bool s_switchMeleeLatch;
+        static bool s_switchBowLatch;
+        static bool s_throwLatch;
 
         public static void Latch()
         {
@@ -49,6 +52,12 @@ namespace CB
                 s_restartLatch = true;
             if (Input.GetKeyDown(KeyCode.N))
                 s_regenLatch = true;
+            if (Input.GetKeyDown(KeyCode.Q))
+                s_switchMeleeLatch = true;
+            if (Input.GetKeyDown(KeyCode.G))
+                s_switchBowLatch = true;
+            if (Input.GetKeyDown(KeyCode.L))
+                s_throwLatch = true;
         }
 
         // ---- consumption (call from fixed step only) ----
@@ -58,6 +67,9 @@ namespace CB
         public static bool ConsumeInteract() { return Take(ref s_interactLatch); }
         public static bool ConsumeRestart() { return Take(ref s_restartLatch); }
         public static bool ConsumeRegen() { return Take(ref s_regenLatch); }
+        public static bool ConsumeSwitchMelee() { return Take(ref s_switchMeleeLatch); }
+        public static bool ConsumeSwitchBow() { return Take(ref s_switchBowLatch); }
+        public static bool ConsumeThrow() { return Take(ref s_throwLatch); }
 
         // ---- held accessors (safe anytime) ----
         public static bool JumpHeld => Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow);
@@ -69,6 +81,7 @@ namespace CB
         {
             s_jumpLatch = s_attackLatch = s_shootLatch = false;
             s_interactLatch = s_restartLatch = s_regenLatch = false;
+            s_switchMeleeLatch = s_switchBowLatch = s_throwLatch = false;
         }
 
         static bool Take(ref bool flag)

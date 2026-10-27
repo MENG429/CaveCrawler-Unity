@@ -211,6 +211,37 @@ namespace CB
         public int enemiesPerRoomMax = 4;
         public int maxGenerationAttempts = 6;
 
+        // ---------------- Player - Wall climb ----------------
+        [Header("Player - Wall Climb")]
+        public float wallSlideSpeed = 3.2f;
+        public float wallClimbSpeed = 2.4f;
+        public float wallJumpX = 11.0f;
+        public float wallJumpY = 15.0f;
+        public float wallStickGrace = 0.12f;
+        public float wallJumpLockTime = 0.16f;
+
+        // ---------------- Player - Throw ----------------
+        [Header("Player - Throw Weapon")]
+        public float throwSpeed = 26f;
+        public float throwGravity = 22f;
+        public float throwDamageMul = 1.0f;
+        public float throwCooldown = 0.45f;
+
+        // ---------------- Inventory & Equipment ----------------
+        [Header("Inventory & Equipment")]
+        public int meleeInventoryMax = 6;
+        public int bowInventoryMax = 6;
+        public int ringSlots = 2;
+        public int artifactSlots = 2;
+        public int statueSlots = 1;
+        public float equipmentDropChance = 0.16f;
+        public float blessingShrineChance = 0.6f;
+        public int blessingsPerShrine = 1;
+
+        // ---------------- Ranged aim ----------------
+        [Header("Combat - Ranged Aim")]
+        public float aimDeadzone = 0.30f;
+
         // ---------------- Camera ----------------
         [Header("Camera")]
         public float cameraOrthoSize = 12.0f;
