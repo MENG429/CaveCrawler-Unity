@@ -39,7 +39,7 @@ const TARGETS = [
   ['holy/heal',                  'neon_holy',   'holy_heal'],
   ['ui/coin-collect',            'neon_coin',   'ui_coin-collect'],
   ['projectiles/arrow',          'neon_arcane', 'projectiles_arrow'],
-  ['impacts/critical-hit',       'neon_blood',  'impacts_critical-hit'],
+  ['impacts/crit-hit',           'neon_blood',  'impacts_critical-hit'],
   ['melee/heavy-cleave',         'neon_coin',   'melee_heavy-cleave'],
 ];
 
