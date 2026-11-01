@@ -269,14 +269,21 @@ namespace CB
                     CBCamera2D.Instance.Shake(heavy ? m_config.screenShakeHit * 2f : m_config.screenShakeHit);
 
                 CBFx.SpawnImpact(target.Body.Position, 1.6f);
+                CBFx.SpawnEffect("impacts_critical-hit", target.Body.Position.x, target.Body.Position.y, false, 1f);
+                if (heavy) CBFx.SpawnEffect("melee_heavy-cleave", target.Body.Position.x, target.Body.Position.y, false, 1f);
 
                 if (Sword.ExplodesOnHit)
                 {
+                    CBFx.SpawnEffect("explosions_barrel-explosion", target.Body.Position.x, target.Body.Position.y, false, 1f);
                     CBExplosion.Detonate(target.Body.Position, Sword.ExplosionRadius, Sword.ExplosionDamage,
                         m_config.explosionKnockback, CBActor.TeamKind.Enemy, m_player, Sword, true);
                 }
 
-                if (target.Dead) OnKilledWithSword(target);
+                if (target.Dead)
+                {
+                    CBFx.SpawnEffect("explosions_barrel-explosion", target.Body.Position.x, target.Body.Position.y, false, 1f);
+                    OnKilledWithSword(target);
+                }
             }
 
             results.Clear();

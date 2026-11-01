@@ -372,6 +372,7 @@ namespace CB
         public void Heal(int amount)
         {
             HP = Mathf.Min(MaxHP, HP + amount);
+            if (amount > 0 && Body != null) CBFx.SpawnEffect("holy_heal", Body.Position.x, Body.Position.y, false, 1f);
         }
 
         public void AddMaxHP(int amount)

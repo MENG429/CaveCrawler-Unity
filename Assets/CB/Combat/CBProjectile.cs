@@ -65,6 +65,7 @@ namespace CB
             m_sr.sortingOrder = 25;
 
             ApplyArt();
+            CBFx.SpawnEffect("projectiles_arrow", m_position.x, m_position.y, false, 1f);
 
             transform.position = new Vector3(position.x, position.y, 0f);
             Orient();

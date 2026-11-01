@@ -23,6 +23,13 @@ namespace CB
         float m_spin;
         bool m_fade;
 
+        // PixelFx sheet animation (patch-gg/pixelfx). Null when this instance is not playing a clip.
+        CBPixelFxClip m_pixClip;
+        float m_pixTime;
+        int m_pixIndex = -1;
+        bool m_pixLoop;
+        float m_pixTimeScale = 1f;
+
         // Art mode: the fx plays frames from a CBArt clip instead of scaling a colour block.
         CBArt.Clip m_artClip;
         int m_artIndex = -1;
@@ -68,6 +75,11 @@ namespace CB
             item.m_artClip = null;
             item.m_artIndex = -1;
             item.m_artScale = 1f;
+            item.m_pixClip = null;
+            item.m_pixIndex = -1;
+            item.m_pixTime = 0f;
+            item.m_pixLoop = false;
+            item.m_pixTimeScale = 1f;
             return item;
         }
 
@@ -109,6 +121,47 @@ namespace CB
             fx.m_spin = 0f;
             fx.m_fade = true;
             return true;
+        }
+
+        /// <summary>
+        /// Spawn a baked pixelfx sheet effect by name (e.g. "explosions_barrel-explosion").
+        /// one-shot plays once then recycles; loop repeats. timeScale &gt; 0 speeds/slows playback.
+        /// GRACEFUL DEGRADE: when the clip is missing/malformed it falls back to the placeholder
+        /// ring so the game keeps running and the existing build is never broken.
+        /// </summary>
+        public static void SpawnEffect(string name, float x, float y, bool loop = false, float timeScale = 1f)
+        {
+            CBPixelFxClip clip;
+            if (!CBPixelFx.TryGetClip(name, out clip) || clip == null || clip.Frames == null || clip.Frames.Length == 0)
+            {
+                SpawnRing(new Vector2(x, y), 0.6f, CBAssets.Slash, 0.2f);
+                return;
+            }
+
+            var fx = Acquire();
+            fx.m_sr.sprite = clip.Frames[0];
+            fx.m_sr.drawMode = SpriteDrawMode.Simple;
+            fx.m_sr.color = Color.white;
+            fx.m_sr.flipX = false;
+            fx.m_sr.size = Vector2.zero;   // ignored in Simple mode
+
+            fx.m_pixClip = clip;
+            fx.m_pixTime = 0f;
+            fx.m_pixIndex = 0;
+            fx.m_pixLoop = loop;
+            fx.m_pixTimeScale = timeScale > 0f ? timeScale : 1f;
+
+            fx.transform.position = new Vector3(x, y, 0f);
+            fx.transform.rotation = Quaternion.identity;
+            fx.transform.localScale = Vector3.one;
+
+            fx.m_startScale = 1f;
+            fx.m_endScale = 1f;
+            fx.m_life = 0f;
+            fx.m_maxLife = 0f;
+            fx.m_velocity = Vector2.zero;
+            fx.m_spin = 0f;
+            fx.m_fade = false;
         }
 
         public static void SpawnRing(Vector2 position, float radius, Color colour, float life)
@@ -196,6 +249,29 @@ namespace CB
 
         void Update()
         {
+            // PixelFx sheet animation (patch-gg/pixelfx). Self-timed; bypasses the life/scale path.
+            if (m_pixClip != null)
+            {
+                float pdt = Time.deltaTime * m_pixTimeScale;
+                m_pixTime += pdt;
+
+                float total = m_pixClip.TotalDuration;
+                float local = m_pixLoop ? (total > 0f ? m_pixTime % total : 0f) : m_pixTime;
+                int idx = m_pixClip.FrameIndexAt(local);
+                if (idx != m_pixIndex && m_pixClip.Frames != null && m_pixClip.Frames[idx] != null)
+                {
+                    m_pixIndex = idx;
+                    m_sr.sprite = m_pixClip.Frames[idx];
+                }
+
+                if (!m_pixLoop && total > 0f && m_pixTime >= total)
+                {
+                    s_active.Remove(this);
+                    Release();
+                }
+                return;
+            }
+
             float dt = Time.deltaTime;
             m_life -= dt;
 

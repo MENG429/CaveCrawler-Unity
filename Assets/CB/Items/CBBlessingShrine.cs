@@ -49,6 +49,7 @@ namespace CB
 
             if (m_sr != null) m_sr.color = new Color(0.35f, 0.30f, 0.45f);
             CBFx.SpawnRing(transform.position, 2.0f, new Color(0.75f, 0.55f, 1.0f), 0.45f);
+            CBFx.SpawnEffect("holy_heal", transform.position.x, transform.position.y, false, 1f);
         }
     }
 }

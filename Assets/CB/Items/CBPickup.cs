@@ -135,6 +135,7 @@ namespace CB
             {
                 float coinMul = (player.Loadout != null) ? player.Loadout.Mods.coinMul : 1f;
                 player.Coins += Mathf.Max(1, Mathf.RoundToInt(m_amount * coinMul));
+                CBFx.SpawnEffect("ui_coin-collect", m_body.Position.x, m_body.Position.y, false, 1f);
             }
             else if (m_kind == Kind.Potion)
             {

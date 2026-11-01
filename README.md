@@ -241,15 +241,60 @@ int maxJumps   = config.maxJumps  + Loadout.Mods.jumpBonus;
 
 ---
 
+## 十一、pixelfx 像素特效集成
+
+为补上「视觉反馈」这一层，工程接入了开源像素特效库 **[patch-gg/pixelfx](https://github.com/patch-gg/pixelfx)（MIT）**——244 个程序化生成的像素特效，可烘焙成「透明 PNG 帧网格 + Aseprite 风格 JSON」供任意引擎使用。本工程只接了其中 **6 个 spike 特效**验证管线，未全量引入。
+
+### 管线
+
+```
+patch-gg/pixelfx (clone, 工程外)  --node bake.mjs-->  Assets/CB/External/pixelfx/Resources/<cat>_<name>.png + .json
+                                                                      │
+                                          CBPixelFx.TryGetClip (Resources.Load + JSON 解析)
+                                                                      │
+                                          CBFx.SpawnEffect(name, x, y, loop)  ← 现有钩子调用
+```
+
+- **`CBPixelFx.cs`**：懒加载 + 缓存；按真实 `spriteSheet()` 结构解析 `frames` 数组与 `meta.pixelfx`（fps / loop / frameSize / pivot / columns），逐帧 `Sprite.Create(FullRect)`。
+- **`CBPixelFxImporter.cs`**（Editor）：对 `Resources/` 下 PNG 强制 point 滤波 / 无压缩 / 无 mipmap，与 `CBArtImporter` 一致。
+- **`CBFx.SpawnEffect`**：接到钩子的特效播放；**缺失/损坏片段自动回退**到既有占位 `SpawnRing`，绝不破坏构建（优雅降级）。
+
+### 已接钩子（6/6）
+
+| 钩子 | 特效 | 调色板 |
+|------|------|--------|
+| 近战命中 / 击杀爆裂 | `explosions_barrel-explosion` | `neon_fire` |
+| 重击挥砍 | `melee_heavy-cleave` | `neon_coin` |
+| 祝福授予 / 任意回血 | `holy_heal` | `neon_holy` |
+| 金币拾取 | `ui_coin-collect` | `neon_coin` |
+| 弓/投掷物生成点 | `projectiles_arrow` | `neon_arcane` |
+| 近战暴击 | `impacts_critical-hit` | `neon_blood` |
+
+调色板与尺度规范见 **`docs/pixelfx-style.md`**（美术方向 · VFX-STYLE-01，7 条霓虹色阶 + 尺度审计）。
+
+### 本地烘焙（开发机执行一次，非 CI）
+
+```bash
+# 1. 克隆上游到工程外（代理环境用 sslVerify=false 绕过 MITM）
+git -c http.sslVerify=false clone --depth 1 https://github.com/patch-gg/pixelfx D:/unity111/pixelfx_tmp
+# 2. 烘焙 6 个特效（内置正式色阶，写入 Resources/）
+node Assets/CB/External/pixelfx/bake.mjs        # 或双击同目录 bake_pixelfx.bat
+```
+
+> 烘焙产物（PNG+JSON）**不入库**，由开发机本地生成；未烘焙时游戏回退到占位特效，行为正常。
+
+---
+
 ## 六、本地运行与打包
 
 ### 运行
 
 1. 安装 **Unity Hub** 与 **Unity 2022.3.62f3c1 LTS**（安装时勾选 *Universal Windows Platform* 或 *Windows/Mac/Linux* 构建支持）
 2. `git clone https://github.com/MENG429/CaveCrawler-Unity.git`
-3. Unity Hub → *Open* → *Add project from disk* → 选择仓库根目录
-4. 首次打开会执行资源导入（约 1–3 分钟）
-5. 打开 `Assets/Scenes/SampleScene.unity`，**直接点 Play**
+3. **（可选，视觉增强）** 按「十一、pixelfx」章节烘焙 6 个像素特效到 `Assets/CB/External/pixelfx/Resources/`
+4. Unity Hub → *Open* → *Add project from disk* → 选择仓库根目录
+5. 首次打开会执行资源导入（约 1–3 分钟）
+6. 打开 `Assets/Scenes/SampleScene.unity`，**直接点 Play**
 
 > 无需手工搭建场景：`CBBootstrap` 会在场景加载后自动生成时钟、相机、关卡与角色。
 
@@ -323,7 +368,7 @@ int maxJumps   = config.maxJumps  + Loadout.Mods.jumpBonus;
 
 | 项 | 说明 |
 |----|------|
-| 美术 | 运行时仍为占位色块，原创素材尚未接入 |
+| 美术 | 角色/敌人/瓦片仍为占位色块（原创素材未接入）；**像素特效**可经 pixelfx 烘焙接入（见「十一」），未烘焙时回退占位特效 |
 | 音效 | 暂未接入 |
 | 数值平衡 | 手感参数由反推 + 试跑校准得出，未做过系统性平衡测试 |
 | 程序集 | 未做 asmdef 拆分（见「技术难点 ⑥」的权衡说明） |
@@ -334,6 +379,8 @@ int maxJumps   = config.maxJumps  + Loadout.Mods.jumpBonus;
 ## 十、许可证
 
 [MIT](LICENSE) © 2026 MENG429
+
+**第三方资源**：像素特效由 [patch-gg/pixelfx](https://github.com/patch-gg/pixelfx) 提供（MIT，© 2026 Patch / Hugo Duprez）；部分特效改编自 Hollow Crown 的 MIT 源码（冻结/震屏/弹性目标）。烘焙产物遵循其 MIT 许可，署此说明。
 
 - 本项目为**学习与技术验证用途**的原型。
 - 玩法机制属思想范畴，不受著作权保护；本项目**不包含**任何原作代码、贴图、音频或数据文件。
